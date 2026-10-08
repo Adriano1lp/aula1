@@ -1,0 +1,83 @@
+# Aula 4 — canary com aliases ponderados do AWS Lambda.
+#
+# Publica a versão candidata, manda uma fração do tráfego para ela, mede,
+# e PROMOVE (100%) ou faz ROLLBACK (0%) sozinho. Rode pela aba Actions.
+# Para ver o rollback acontecer, rode com erro_simulado = 0.2.
+name: "Aula 4 · Canary do classificador (AWS Lambda)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      peso:
+        description: "Fração do tráfego para o canary (0.1 = 10%)"
+        default: "0.1"
+      erro_simulado:
+        description: "Fração de erros que a versão candidata injeta (0 = saudável)"
+        default: "0"
+      requisicoes:
+        description: "Requisições de teste durante a análise"
+        default: "300"
+
+concurrency: classificador-producao
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    environment: producao
+    env:
+      AWS_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt
+      - run: python classificador/treino.py
+      - run: python classificador/model_gate.py artefatos/metricas.json
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Versão estável (a que está 100% hoje)
+        id: estavel
+        run: |
+          echo "versao=$(aws lambda get-alias --function-name classificador-avaliacoes \
+            --name producao --query FunctionVersion --output text)" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar versão candidata
+        id: candidata
+        env:
+          ERRO_SIMULADO: ${{ inputs.erro_simulado }}
+          MODELO_VERSAO: ${{ github.sha }}-${{ github.run_number }}
+        run: echo "versao=$(classificador/deploy/publicar.sh | tail -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Abrir o canary
+        id: trafego
+        run: |
+          URL=$(classificador/deploy/trafego.sh ${{ steps.estavel.outputs.versao }} \
+            ${{ steps.candidata.outputs.versao }} ${{ inputs.peso }})
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Analisar o canary
+        id: analise
+        continue-on-error: true
+        run: |
+          python classificador/deploy/canary_check.py "${{ steps.trafego.outputs.url }}" \
+            --requisicoes ${{ inputs.requisicoes }} | tee analise.txt
+          { echo '```'; cat analise.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Promover (100% na candidata)
+        if: steps.analise.outcome == 'success'
+        run: |
+          classificador/deploy/trafego.sh ${{ steps.candidata.outputs.versao }}
+          echo "### ✅ Promovida a versão ${{ steps.candidata.outputs.versao }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Rollback (100% de volta na estável)
+        if: steps.analise.outcome == 'failure'
+        run: |
+          classificador/deploy/trafego.sh ${{ steps.estavel.outputs.versao }}
+          echo "### ↩️ Rollback para a versão ${{ steps.estavel.outputs.versao }}" >> "$GITHUB_STEP_SUMMARY"
+          exit 1

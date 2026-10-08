@@ -1,0 +1,21 @@
+# Critérios do agent gate — mudar este arquivo também passa por PR e revisão.
+#
+# Com 6 casos por categoria, cada caso vale ~17 p.p. Estes limites foram calibrados contra o RUÍDO
+# MEDIDO do modelo gratuito do laboratório (qwen2.5:3b via Ollama): o mesmo código, no mesmo tipo de
+# runner do GitHub, deu 86% e depois 81% de média na camada de resposta, com categorias oscilando
+# até 2 casos entre execuções. Piso de 3 de 6 e tolerância de 2 casos evitam reprovar um PR que não
+# mudou nada; uma degradação real (ex.: perder uma categoria inteira) derruba 3 ou mais casos e é
+# pega. O provedor "simulado" (palavras-chave) continua reprovando.
+#
+# Dataset pequeno = gate frouxo. Ao trocar pelos 200 chamados e pelo LLM do seu grupo, recalibre:
+# o piso vem da baseline de produção, e com mais casos por categoria dá para apertar.
+piso:
+  roteamento: 0.5
+  recuperacao: 0.5
+  resposta: 0.5
+tolerancia_ruido: 0.34  # cair até 2 casos de 6 pode ser variação do LLM; cair 3 ou mais é regressão
+
+# Juiz de fidelidade (extra opcional, ver promptfooconfig-juiz.yaml). Por padrão só informa; com
+# um modelo juiz maior, defina JUIZ_BLOQUEIA=true para ele valer como critério de bloqueio.
+juiz:
+  piso_fidelidade: 0.66

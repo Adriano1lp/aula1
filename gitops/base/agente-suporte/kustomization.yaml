@@ -1,0 +1,9 @@
+# O que é comum a todos os ambientes.
+resources:
+  - deployment.yaml
+  - service.yaml
+configMapGenerator:
+  # O nome ganha um sufixo com hash do conteúdo: mudar a configuração
+  # gera um ConfigMap novo e dispara o rollout do Deployment sozinho.
+  - name: inference-config
+    envs: [inference-config.env]

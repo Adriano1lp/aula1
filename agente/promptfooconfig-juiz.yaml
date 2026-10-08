@@ -1,0 +1,44 @@
+# Juiz de fidelidade (extra opcional, Aula 6): a resposta CONTRADIZ a política ou inventa um
+# prazo/valor? É o que o gate determinístico (promptfooconfig.yaml) não enxerga: ele só confere se
+# o fato foi citado, então "não reembolsa" e "será devolvido" passam juntos.
+#
+#   LLM_PROVEDOR=... npx promptfoo@0.123.1 eval -c agente/promptfooconfig-juiz.yaml \
+#     -o resultado-juiz.json --no-progress-bar
+#   python agente/juiz_resumo.py resultado-juiz.json
+#
+# Quem julga (variáveis de ambiente lidas por juiz_provedor.py; padrão = Ollama local, gratuito):
+#   LLM_JUIZ_BASE_URL  endpoint compatível com a API da OpenAI (Foundry, Azure OpenAI, Ollama...)
+#   LLM_JUIZ_MODELO    nome do modelo juiz
+#   LLM_JUIZ_API_KEY   chave
+# ATENÇÃO: um juiz de 3 bilhões de parâmetros é fraco e erra o formato da nota às vezes. Para valer
+# como critério de bloqueio, use um modelo maior (Foundry/Azure OpenAI, Bedrock via gateway).
+# Custa 1 chamada extra por caso, por isso roda só no merge, não em todo PR.
+description: "Juiz de fidelidade — atendimento Quantum Commerce"
+
+prompts:
+  - "{{chamado}}"
+
+providers:
+  - id: "file://provedor_promptfoo.py"
+    label: atendimento
+
+tests: file://golden/chamados.csv
+
+evaluateOptions:
+  maxConcurrency: 2
+
+defaultTest:
+  options:
+    # o juiz lê só o texto da resposta, não o JSON inteiro do agente
+    transform: JSON.parse(output).resposta
+    provider: "file://juiz_provedor.py"
+  assert:
+    - type: llm-rubric
+      metric: fidelidade
+      value: |
+        Você audita respostas de atendimento. O fato correto da política da empresa é:
+        "{{trecho}}"
+        Aprove (pass) SOMENTE se a resposta ao cliente é consistente com esse fato: ela pode
+        parafrasear, pode ser mais curta ou omitir o fato. Reprove se ela CONTRADIZ o fato
+        (por exemplo, promete devolução onde a política diz que não há) ou se afirma um prazo,
+        valor ou condição diferente do fato.

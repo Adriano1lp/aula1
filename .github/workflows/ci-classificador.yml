@@ -1,0 +1,70 @@
+# Aula 2 — as etapas de CI do pipeline de sete etapas, para o classificador de avaliações.
+# Cada job é uma etapa; "needs" desenha a ordem (veja o grafo na aba Actions).
+name: "Aula 2 · CI do classificador"
+
+on:
+  pull_request:
+    paths: ["classificador/**", ".github/workflows/ci-classificador.yml"]
+  push:
+    branches: [main]
+    paths: ["classificador/**", ".github/workflows/ci-classificador.yml"]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: "1 · Lint"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.12" }
+      - run: pip install ruff==0.11.11
+      - run: ruff check classificador && ruff format --check classificador
+
+  testes-unitarios:
+    name: "2 · Testes unitários"
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt
+      - run: pytest classificador/tests/test_texto.py -v
+
+  testes-de-dados:
+    name: "3 · Testes de dados"
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt
+      # Para testar outro lote: DADOS=classificador/dados/lote-novo.csv
+      - run: pytest classificador/tests/test_dados.py -v
+
+  treino-e-gate:
+    name: "4 · Treino + 5 · Model gate"
+    needs: [testes-unitarios, testes-de-dados]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt
+      - run: python classificador/treino.py
+      - run: python classificador/model_gate.py artefatos/metricas.json
+      - run: pytest classificador/tests/test_servico.py -v
+      - uses: actions/upload-artifact@v7
+        with: { name: modelo, path: artefatos/ }
+
+  build:
+    name: "6 · Build da imagem"
+    needs: treino-e-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with: { name: modelo, path: artefatos/ }
+      - run: docker build --provenance=false -f classificador/Dockerfile -t classificador:${{ github.sha }} .

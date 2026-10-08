@@ -1,0 +1,45 @@
+# Agent gate (Aulas 5 e 6): roda o golden dataset contra o agente e mede,
+# por caso, três camadas — roteamento, recuperação e resposta.
+#
+#   npx promptfoo@0.123.1 eval -c agente/promptfooconfig.yaml -o resultado-eval.json
+#   python agente/agent_gate.py resultado-eval.json
+#
+# Tudo aqui é determinístico (sem LLM-as-judge) para caber no limite gratuito
+# e rodar em todo PR. O juiz fica em promptfooconfig-juiz.yaml, só no merge.
+description: "Agent gate — atendimento Quantum Commerce"
+
+prompts:
+  - "{{chamado}}"
+
+providers:
+  - id: "file://provedor_promptfoo.py"
+    label: atendimento
+
+# Uma linha por chamado anotado: chamado, categoria, documento, trecho
+tests: file://golden/chamados.csv
+
+evaluateOptions:
+  maxConcurrency: 2   # Ollama em CPU: mais que isso só enfileira
+
+defaultTest:
+  assert:
+    - type: javascript
+      metric: roteamento
+      value: JSON.parse(output).categoria === context.vars.categoria
+    - type: javascript
+      metric: recuperacao
+      value: JSON.parse(output).documento === context.vars.documento
+    # Camada de resposta: a resposta traz as palavras-chave do fato da política (prazo, valor,
+    # condição)? Compara radicais de 5 letras, sem acento nem stopwords, e exige >= 50%.
+    # LIMITE CONHECIDO: mede se o fato foi citado, não se a resposta contradiz a política
+    # ("não reembolsa" x "devolvido" passam juntas). Quem pega isso é LLM-as-judge (Aula 5).
+    - type: javascript
+      metric: resposta
+      value: |
+        const stop = new Set('de da do das dos em no na nos nas um uma para por com que se ate ou e a o'.split(' '));
+        const radicais = (s) => new Set(
+          (s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').match(/[a-z0-9]+/g) || [])
+            .filter((t) => !stop.has(t)).map((t) => t.slice(0, 5)));
+        const esperado = radicais(context.vars.trecho);
+        const obtido = radicais(JSON.parse(output).resposta);
+        return [...esperado].filter((r) => obtido.has(r)).length / esperado.size >= 0.5;

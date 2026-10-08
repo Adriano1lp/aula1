@@ -1,0 +1,11 @@
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.venv/
+artefatos/
+mlruns/
+mlflow.db
+node_modules/
+resultado-eval.json
+.promptfoo/
+.env

@@ -1,0 +1,9 @@
+{
+  "f1_macro": 0.82,
+  "f1_por_classe": {
+    "positiva": 0.87,
+    "negativa": 0.81,
+    "neutra": 0.78
+  },
+  "versao": "v1 — modelo que está no ar hoje"
+}

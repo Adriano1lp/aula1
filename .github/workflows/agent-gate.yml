@@ -1,0 +1,122 @@
+# Aulas 5 e 6 — o agent gate: nenhuma mudança no agente (prompt, política,
+# modelo, código) chega à produção sem passar pelo golden dataset.
+#
+# Provedor do LLM (Settings → Secrets and variables → Actions → Variables):
+#   sem nada configurado     → Ollama no próprio runner (100% gratuito, ~5–10 min)
+#   LLM_PROVEDOR=bedrock     → AWS Academy (secrets AWS_* da sessão do Learner Lab)
+#   LLM_BASE_URL + secret LLM_API_KEY → Microsoft Foundry / Azure OpenAI ou outra API compatível
+#
+# Override: o rótulo "override-agent-gate" no PR libera uma reprovação,
+# e a exceção fica registrada no resumo da execução.
+name: "Aula 6 · Agent gate"
+
+on:
+  pull_request:
+    paths: ["agente/**", ".github/workflows/agent-gate.yml"]
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+    inputs:
+      com_juiz:
+        description: "Rodar também o juiz de fidelidade (LLM-as-judge, extra opcional)"
+        type: boolean
+        default: false
+  workflow_call:   # o deploy chama este workflow antes de publicar
+    inputs:
+      com_juiz:
+        type: boolean
+        default: false
+
+jobs:
+  testes:
+    name: "Lint e testes unitários"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt
+      - run: ruff check agente && ruff format --check agente
+      - run: pytest agente/tests -v
+
+  agent-gate:
+    name: "Testes de comportamento + agent gate"
+    needs: testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      LLM_PROVEDOR: ${{ vars.LLM_PROVEDOR || 'openai' }}
+      LLM_MODELO: ${{ vars.LLM_MODELO }}
+      LLM_BASE_URL: ${{ vars.LLM_BASE_URL || 'http://localhost:11434/v1' }}
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY || 'ollama' }}
+      OLLAMA_MODELO: ${{ vars.LLM_MODELO || 'qwen2.5:3b' }}
+      PROMPTFOO_DISABLE_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.12", cache: pip }
+      - uses: actions/setup-node@v7
+        with: { node-version: "22" }
+      - run: pip install -r requirements.txt
+
+      # --- Ollama: só quando nenhum provedor externo foi configurado ---
+      - name: Cache dos modelos do Ollama
+        if: ${{ !vars.LLM_BASE_URL && env.LLM_PROVEDOR == 'openai' }}
+        uses: actions/cache@v6
+        with:
+          path: ~/.ollama/models
+          key: ollama-${{ env.OLLAMA_MODELO }}
+      - name: Subir o Ollama no runner
+        if: ${{ !vars.LLM_BASE_URL && env.LLM_PROVEDOR == 'openai' }}
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          (OLLAMA_MODELS=~/.ollama/models ollama serve > ollama.log 2>&1 &)
+          sleep 5
+          OLLAMA_MODELS=~/.ollama/models ollama pull "$OLLAMA_MODELO"
+          echo "LLM_MODELO=$OLLAMA_MODELO" >> "$GITHUB_ENV"
+
+      # --- Bedrock: credenciais da sessão do AWS Academy ---
+      - name: Credenciais do AWS Academy
+        if: env.LLM_PROVEDOR == 'bedrock'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Rodar o golden dataset (promptfoo)
+        run: |
+          npx -y promptfoo@0.123.1 eval -c agente/promptfooconfig.yaml \
+            -o resultado-eval.json --no-progress-bar --no-table || true
+
+      - name: Agent gate
+        env:
+          OVERRIDE_AGENT_GATE: >-
+            ${{ contains(github.event.pull_request.labels.*.name, 'override-agent-gate')
+                && format('rótulo override-agent-gate no PR #{0}, aplicado com {1} como autor da execução',
+                          github.event.pull_request.number, github.actor) || '' }}
+        run: python agente/agent_gate.py resultado-eval.json
+
+      # Extra opcional: o gate acima só confere se o fato foi citado; o juiz pega a resposta que
+      # contradiz a política. Juiz padrão = o mesmo Ollama (fraco); configure LLM_JUIZ_BASE_URL,
+      # LLM_JUIZ_MODELO e o secret LLM_JUIZ_API_KEY para usar um modelo maior.
+      - name: Juiz de fidelidade (opcional)
+        if: ${{ inputs.com_juiz }}
+        env:
+          LLM_JUIZ_BASE_URL: ${{ vars.LLM_JUIZ_BASE_URL }}
+          LLM_JUIZ_MODELO: ${{ vars.LLM_JUIZ_MODELO }}
+          LLM_JUIZ_API_KEY: ${{ secrets.LLM_JUIZ_API_KEY }}
+          JUIZ_BLOQUEIA: ${{ vars.JUIZ_BLOQUEIA }}   # "true" só com um juiz forte; padrão: informativo
+        run: |
+          npx -y promptfoo@0.123.1 eval -c agente/promptfooconfig-juiz.yaml \
+            -o resultado-juiz.json --no-progress-bar --no-table || true
+          python agente/juiz_resumo.py resultado-juiz.json
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: resultado-agent-gate
+          path: |
+            resultado-eval.json
+            resultado-juiz.json
+          if-no-files-found: ignore

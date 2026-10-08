@@ -1,0 +1,28 @@
+# Serviço de inferência do agente de suporte.
+# No laboratório, um "echo" que responde com a configuração ativa — o que
+# importa aqui é o caminho Git → cluster, não o agente em si.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agente-suporte
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: agente-suporte }
+  template:
+    metadata:
+      labels: { app: agente-suporte }
+    spec:
+      containers:
+        - name: agente
+          image: hashicorp/http-echo:1.0
+          args:
+            - -listen=:8080
+            - -text=ambiente=$(AMBIENTE) modelo=$(MODELO) prompt=$(PROMPT_VERSAO) temperatura=$(TEMPERATURA) rag=$(RAG_INDICE)
+          envFrom:
+            - configMapRef: { name: inference-config }
+          ports:
+            - containerPort: 8080
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 100m, memory: 32Mi }

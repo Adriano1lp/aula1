@@ -1,0 +1,10 @@
+namespace: agente-producao
+resources:
+  - namespace.yaml
+  - ../../base/agente-suporte
+configMapGenerator:
+  - name: inference-config
+    behavior: merge
+    envs: [inference-config.env]
+patches:
+  - path: escala.patch.yaml

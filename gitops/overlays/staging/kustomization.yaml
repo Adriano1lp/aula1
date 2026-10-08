@@ -1,0 +1,8 @@
+namespace: agente-staging
+resources:
+  - namespace.yaml
+  - ../../base/agente-suporte
+configMapGenerator:
+  - name: inference-config
+    behavior: merge
+    envs: [inference-config.env]

@@ -1,0 +1,22 @@
+{
+  "name": "AIE · DevOps para IA",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false },
+    "ghcr.io/devcontainers/features/sshd:1": {},
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": { "minikube": "none" },
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
+    "ghcr.io/devcontainers/features/azure-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" }
+  },
+  "postCreateCommand": "bash .devcontainer/instalar.sh",
+  "hostRequirements": { "cpus": 2, "memory": "8gb" },
+  "forwardPorts": [5000, 8443],
+  "portsAttributes": {
+    "5000": { "label": "MLflow" },
+    "8443": { "label": "Argo CD" }
+  },
+  "customizations": {
+    "vscode": { "extensions": ["ms-python.python", "charliermarsh.ruff", "redhat.vscode-yaml"] }
+  }
+}

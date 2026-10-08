@@ -1,0 +1,37 @@
+chamado,categoria,documento,trecho
+"Meu pedido era pra chegar segunda e já estamos na outra semana, passou uns 6 dias úteis. O que eu faço?",entrega,entrega.md,cupom de R$ 30
+"O rastreio do meu pacote não atualiza há mais de uma semana, parado no mesmo lugar",entrega,entrega.md,reenviado sem custo
+"Comprei com frete expresso em São Paulo, em quantos dias chega?",entrega,entrega.md,2 dias úteis
+"Já despachou mas não recebi nenhum código de rastreamento",entrega,entrega.md,24 horas
+"O prazo de entrega conta a partir de quando? Paguei boleto ontem",entrega,entrega.md,confirmação do pagamento
+"Quero cancelar porque o pedido está muito atrasado, tenho direito a reembolso?",entrega,entrega.md,reembolso integral
+"Pedi uma cafeteira preta e veio uma vermelha, recebi ontem",divergente_defeito,divergente_defeito.md,7 dias corridos
+"O fone parou de funcionar depois de dois meses de uso",divergente_defeito,divergente_defeito.md,90 dias
+"O notebook liga e desliga sozinho, o que preciso mandar pra provar?",divergente_defeito,divergente_defeito.md,vídeo curto
+"Veio o tamanho errado do tênis, como funciona a coleta?",divergente_defeito,divergente_defeito.md,coleta do produto é gratuita
+"A air fryer chegou com a tampa quebrada, quais as opções de solução?",divergente_defeito,divergente_defeito.md,abatimento proporcional
+"O anúncio dizia 256GB e o celular veio com 128GB",divergente_defeito,divergente_defeito.md,fotos do produto
+"O vendedor me pediu pra pagar por Pix direto pra ele com desconto, eu paguei e ele sumiu",fraude_vendedor,fraude_vendedor.md,não reembolsa pagamentos feitos fora da plataforma
+"Abri a caixa e estava vazia, só tinha papel dentro",fraude_vendedor,fraude_vendedor.md,devolvido ao comprador em até 5 dias úteis
+"O código de rastreio que o vendedor mandou não existe nos Correios e o anúncio sumiu",fraude_vendedor,fraude_vendedor.md,valor é bloqueado
+"Paguei pela plataforma, o dinheiro já foi para o vendedor? Acho que é golpe",fraude_vendedor,fraude_vendedor.md,retidos até a confirmação de entrega
+"Fui enganado por um vendedor que pediu transferência bancária, vocês ajudam com o B.O.?",fraude_vendedor,fraude_vendedor.md,protocolo para o boletim de ocorrência
+"Que situações vocês consideram fraude do vendedor?",fraude_vendedor,fraude_vendedor.md,caixa vazia
+"O perfume que comprei tem cheiro diferente do original, acho que é falso",falsificado,falsificado.md,30 dias
+"O tênis veio com a logo torta e costura estranha, parece réplica. Como denuncio?",falsificado,falsificado.md,número de série
+"Quanto tempo demora a análise de produto pirata?",falsificado,falsificado.md,10 dias úteis
+"Se confirmarem que a bolsa é falsificada eu preciso devolver ao vendedor?",falsificado,falsificado.md,não precisa ser devolvido
+"Pediram para eu mandar o relógio para perícia, quem paga o frete?",falsificado,falsificado.md,frete pago pela Quantum
+"Comprei um fone que parece imitação barata da marca, recebo meu dinheiro de volta?",falsificado,falsificado.md,reembolso integral
+"Vi um anúncio vendendo remédio controlado sem receita",artigo_proibido,artigo_proibido.md,medicamentos controlados
+"Como faço para denunciar um anúncio irregular?",artigo_proibido,artigo_proibido.md,48 horas
+"Tem gente vendendo filhote de papagaio no site, isso pode?",artigo_proibido,artigo_proibido.md,animais silvestres
+"Comprei um suplemento e depois vi que não tem registro na Anvisa",artigo_proibido,artigo_proibido.md,reembolso integral
+"Posso vender munição de airsoft e arma na loja de vocês?",artigo_proibido,artigo_proibido.md,armas e munições
+"Comprei um item que vocês dizem ser proibido, o que faço com ele?",artigo_proibido,artigo_proibido.md,descarte ou a coleta
+"Me arrependi da compra, o produto está perfeito, posso devolver?",devolucao_ressarcimento,devolucao_ressarcimento.md,7 dias corridos
+"Como gero a etiqueta para devolver o pedido?",devolucao_ressarcimento,devolucao_ressarcimento.md,Meus pedidos
+"Devolvi a mochila semana passada, quando cai o reembolso?",devolucao_ressarcimento,devolucao_ressarcimento.md,10 dias úteis
+"Paguei no cartão e o estorno ainda não apareceu na fatura",devolucao_ressarcimento,devolucao_ressarcimento.md,duas faturas
+"A etiqueta de devolução vale até quando?",devolucao_ressarcimento,devolucao_ressarcimento.md,válida por 10 dias
+"Preciso justificar o motivo para devolver uma compra feita no site?",devolucao_ressarcimento,devolucao_ressarcimento.md,sem necessidade de justificativa

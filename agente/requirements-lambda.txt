@@ -1,0 +1,2 @@
+# O boto3 (provedor Bedrock) já vem na imagem do Lambda; só o cliente OpenAI-compatível é extra.
+openai==1.82.0

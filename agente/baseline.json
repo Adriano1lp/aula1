@@ -1,0 +1,32 @@
+{
+  "artigo_proibido": {
+    "roteamento": 0.667,
+    "recuperacao": 0.667,
+    "resposta": 0.667
+  },
+  "devolucao_ressarcimento": {
+    "roteamento": 1.0,
+    "recuperacao": 1.0,
+    "resposta": 0.667
+  },
+  "divergente_defeito": {
+    "roteamento": 0.833,
+    "recuperacao": 0.833,
+    "resposta": 1.0
+  },
+  "entrega": {
+    "roteamento": 0.833,
+    "recuperacao": 0.833,
+    "resposta": 1.0
+  },
+  "falsificado": {
+    "roteamento": 1.0,
+    "recuperacao": 1.0,
+    "resposta": 1.0
+  },
+  "fraude_vendedor": {
+    "roteamento": 0.833,
+    "recuperacao": 0.833,
+    "resposta": 0.833
+  }
+}

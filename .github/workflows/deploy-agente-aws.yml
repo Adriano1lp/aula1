@@ -1,0 +1,71 @@
+# Aula 6 — deploy do agente no AWS Academy (Lambda + ECR), SÓ depois do agent gate. É o caminho padrão.
+#
+# Precisa dos secrets AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY e AWS_SESSION_TOKEN do Learner Lab. Eles
+# expiram com a sessão de 4h, mas a função e a URL pública CONTINUAM NO AR depois disso (só as EC2 são
+# paradas no "End Lab"): cole credenciais novas só quando for fazer um novo deploy.
+#
+# LLM do agente em produção (Settings → Secrets and variables → Actions); sem nada, usa o provedor simulado:
+#   variável AGENTE_LLM_PROVEDOR  bedrock (se o seu Learner Lab liberar) | openai | simulado
+#   variáveis AGENTE_LLM_BASE_URL e AGENTE_LLM_MODELO, secret AGENTE_LLM_API_KEY  (para "openai")
+name: "Aula 6 · Deploy do agente (AWS Lambda)"
+
+on:
+  push:
+    branches: [main]
+    paths: ["agente/**"]
+  workflow_dispatch:
+
+concurrency: agente-producao-aws
+
+jobs:
+  gate:
+    uses: ./.github/workflows/agent-gate.yml
+    with:
+      com_juiz: ${{ vars.AGENT_GATE_JUIZ == 'true' }}
+    secrets: inherit
+
+  deploy:
+    name: "Deploy no AWS Academy"
+    needs: gate
+    runs-on: ubuntu-latest
+    environment: producao
+    env:
+      AWS_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Credenciais do Academy válidas?
+        run: |
+          aws sts get-caller-identity >/dev/null || {
+            echo "::error::Credenciais do AWS Academy expiradas. Inicie o lab e atualize os secrets."
+            exit 1
+          }
+
+      - name: Publicar nova versão no Lambda
+        id: publicar
+        env:
+          PROMPT_VERSAO: ${{ github.sha }}
+          LLM_PROVEDOR: ${{ vars.AGENTE_LLM_PROVEDOR || 'simulado' }}
+          LLM_BASE_URL: ${{ vars.AGENTE_LLM_BASE_URL }}
+          LLM_MODELO: ${{ vars.AGENTE_LLM_MODELO }}
+          LLM_API_KEY: ${{ secrets.AGENTE_LLM_API_KEY }}
+        run: echo "versao=$(agente/deploy/publicar.sh | tail -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Apontar 100% do tráfego para a nova versão
+        id: trafego
+        run: echo "url=$(agente/deploy/trafego.sh ${{ steps.publicar.outputs.versao }})" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test na URL pública
+        run: |
+          URL="${{ steps.trafego.outputs.url }}"
+          for i in $(seq 1 10); do curl -sf "$URL" && break; sleep 6; done
+          curl -sf -X POST "${URL}chamado" -H 'content-type: application/json' \
+            -d '{"texto": "Meu pedido está atrasado há 6 dias úteis"}'
+          echo "### 🚀 Agente no ar (versão ${{ steps.publicar.outputs.versao }}): $URL" >> "$GITHUB_STEP_SUMMARY"

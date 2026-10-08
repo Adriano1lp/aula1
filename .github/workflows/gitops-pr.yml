@@ -1,0 +1,36 @@
+# Aula 3 — checks obrigatórios de um PR de configuração.
+# O que muda produção é o merge deste PR; o Argo CD faz o resto.
+name: "Aula 3 · Checks do PR de configuração (GitOps)"
+
+on:
+  pull_request:
+    paths: ["gitops/**"]
+  push:
+    branches: [main]
+    paths: ["gitops/**"]
+
+jobs:
+  politicas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.12" }
+      - run: pip install pyyaml==6.0.2
+      - name: Os overlays renderizam?
+        run: |
+          kubectl kustomize gitops/overlays/staging > /dev/null
+          kubectl kustomize gitops/overlays/producao > /dev/null
+      - name: Políticas (versão explícita, sem segredo, réplicas)
+        run: python gitops/politicas/verificar.py
+      - name: O que este PR muda em cada ambiente
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch -q origin "${{ github.base_ref }}"
+          for amb in staging producao; do
+            echo "### $amb" >> "$GITHUB_STEP_SUMMARY"
+            echo '```diff' >> "$GITHUB_STEP_SUMMARY"
+            diff <(git show "origin/${{ github.base_ref }}:gitops/overlays/$amb/inference-config.env" 2>/dev/null) \
+                 "gitops/overlays/$amb/inference-config.env" >> "$GITHUB_STEP_SUMMARY" || true
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          done

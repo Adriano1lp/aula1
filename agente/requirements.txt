@@ -1,0 +1,6 @@
+# Dependências do agente em produção (Azure Web Apps instala este arquivo no deploy)
+openai==1.82.0
+boto3==1.38.23
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+gunicorn==23.0.0

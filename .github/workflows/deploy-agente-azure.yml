@@ -1,0 +1,42 @@
+# Aula 6 — deploy do agente no Azure Web Apps: ALTERNATIVA ao deploy no AWS Academy (deploy-agente-aws.yml),
+# para quem prefere o Azure. Só roda manualmente, para não competir com o deploy da AWS a cada push.
+#
+# Configuração: roteiros/setup-azure.md (atenção às regras do Azure for Students da parceria: regiões por
+# aluno, cota). Precisa da variável AZURE_WEBAPP_NAME e do secret AZURE_WEBAPP_PUBLISH_PROFILE.
+name: "Aula 6 · Deploy do agente (Azure Web Apps)"
+
+on:
+  workflow_dispatch:
+
+concurrency: agente-producao
+
+jobs:
+  gate:
+    uses: ./.github/workflows/agent-gate.yml
+    with:
+      # defina a variável AGENT_GATE_JUIZ=true (Settings → Variables) para o juiz rodar no merge
+      com_juiz: ${{ vars.AGENT_GATE_JUIZ == 'true' }}
+    secrets: inherit
+
+  deploy:
+    needs: gate
+    runs-on: ubuntu-latest
+    environment:
+      name: producao
+      url: https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net
+    steps:
+      - uses: actions/checkout@v7
+      - name: Pacote do agente (só o que roda em produção)
+        run: |
+          mkdir pacote
+          cp -r agente/*.py agente/requirements.txt agente/prompts agente/politicas pacote/
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: pacote
+      - name: Smoke test
+        run: |
+          URL="https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net"
+          for i in $(seq 1 20); do curl -sf "$URL/" && break; sleep 15; done
+          echo "### 🚀 Agente no ar: $URL" >> "$GITHUB_STEP_SUMMARY"

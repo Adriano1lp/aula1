@@ -1,0 +1,59 @@
+# Aula 2 — etapa 7 (deploy) no AWS Academy: Lambda com imagem no ECR.
+#
+# Precisa dos secrets AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY e AWS_SESSION_TOKEN,
+# copiados de "AWS Details" no Learner Lab. Eles EXPIRAM ao fim da sessão (4h):
+# a cada aula, rode roteiros/setup-aws-academy.md#3 para atualizá-los.
+name: "Aula 2 · Deploy do classificador (AWS Lambda)"
+
+on:
+  push:
+    branches: [main]
+    paths: ["classificador/**"]
+  workflow_dispatch:
+
+concurrency: classificador-producao
+
+jobs:
+  deploy:
+    name: "7 · Deploy"
+    runs-on: ubuntu-latest
+    environment: producao
+    env:
+      AWS_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt
+
+      # O deploy refaz treino e gate: nada chega à produção sem passar por eles
+      - run: python classificador/treino.py
+      - run: python classificador/model_gate.py artefatos/metricas.json
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Credenciais do Academy válidas?
+        run: |
+          aws sts get-caller-identity >/dev/null || {
+            echo "::error::Credenciais do AWS Academy expiradas. Inicie o lab e atualize os secrets."
+            exit 1
+          }
+
+      - name: Publicar nova versão no Lambda
+        id: publicar
+        run: echo "versao=$(classificador/deploy/publicar.sh | tail -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Apontar 100% do tráfego para a nova versão
+        id: trafego
+        run: echo "url=$(classificador/deploy/trafego.sh ${{ steps.publicar.outputs.versao }})" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test na URL pública
+        run: |
+          curl -sf -X POST "${{ steps.trafego.outputs.url }}" \
+            -H 'content-type: application/json' -d '{"texto": "Adorei, chegou rápido"}'
+          echo "### 🚀 Versão ${{ steps.publicar.outputs.versao }} no ar: ${{ steps.trafego.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
