@@ -1,6 +1,5 @@
-# Produção: o Argo CD aplica o que entra na main, mas NÃO desfaz mudança
-# manual sozinho — só marca OutOfSync (drift) e alguém decide. Essa é uma
-# das decisões do laboratório: troquem para selfHeal: true e justifiquem.
+# Produção segue o Git como fonte única da verdade. Mudanças manuais são
+# revertidas pelo Argo CD; exceções emergenciais precisam virar commit/PR.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -17,4 +16,4 @@ spec:
   syncPolicy:
     automated:
       prune: true
-      selfHeal: false
+      selfHeal: true
