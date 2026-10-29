@@ -15,7 +15,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from texto import so_emojis
+from texto import limpar, so_emojis
 
 PASTA = Path(__file__).parent.parent / "dados"
 CLASSES = {"positiva", "negativa", "neutra"}
@@ -25,6 +25,13 @@ REFERENCIA = {"positiva": 0.40, "negativa": 0.35, "neutra": 0.25}
 DESVIO_ALERTA = 0.05  # classe 5 p.p. fora da referência → alerta
 DESVIO_BLOQUEIO = 0.10  # classe 10 p.p. fora → bloqueia
 MAX_SO_EMOJIS = 0.10  # mais de 10% de textos sem palavra → bloqueia
+DESVIO_TAMANHO_MAX = 0.30  # média de palavras por classe pode variar no máximo ±30%
+
+
+def media_palavras(dados: pd.DataFrame, classe: str) -> float:
+    """Média de palavras úteis; limpeza ignora URL, pontuação e emoji."""
+    textos = dados.loc[dados["rotulo"] == classe, "texto"].fillna("")
+    return textos.map(lambda texto: len(limpar(texto).split())).mean()
 
 
 @pytest.fixture(scope="module")
@@ -51,6 +58,18 @@ def test_volume_minimo(dados):
 def test_proporcao_de_textos_so_com_emojis(dados):
     frac = dados["texto"].map(so_emojis).mean()
     assert frac <= MAX_SO_EMOJIS, f"{frac:.0%} dos textos só têm emojis (máx. {MAX_SO_EMOJIS:.0%})"
+
+
+@pytest.mark.parametrize("classe", sorted(CLASSES))
+def test_tamanho_medio_dos_textos_por_classe(dados, classe):
+    referencia = pd.read_csv(PASTA / "avaliacoes.csv")
+    media_ref = media_palavras(referencia, classe)
+    media_lote = media_palavras(dados, classe)
+    desvio = abs(media_lote / media_ref - 1)
+    assert desvio <= DESVIO_TAMANHO_MAX, (
+        f"classe '{classe}' tem média de {media_lote:.1f} palavras; referência {media_ref:.1f} "
+        f"(desvio {desvio:.0%}, máximo {DESVIO_TAMANHO_MAX:.0%})"
+    )
 
 
 @pytest.mark.parametrize("classe", sorted(CLASSES))

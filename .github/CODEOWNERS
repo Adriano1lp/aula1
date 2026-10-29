@@ -1,5 +1,8 @@
-# Aula 3: mudar produção exige revisão de quem responde por ela.
-# Troque pelos usuários do seu grupo e ative "Require review from Code Owners"
-# na proteção da branch main (Settings → Branches).
+# Toda mudança pede revisão do code owner da dupla.
+# Troque pelo usuário do revisor do seu grupo e ative
+# "Require review from Code Owners" na proteção da branch main.
+*                              @biapretz-dotcom
+
+# Áreas de maior risco mantêm regras explícitas.
 /gitops/overlays/producao/  @biapretz-dotcom
 /agente/prompts/            @biapretz-dotcom
