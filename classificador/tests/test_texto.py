@@ -24,5 +24,6 @@ def test_espacos_unicos():
     assert limpar("  muito    bom  ") == "muito bom"
 
 
+
 def test_texto_vazio_continua_vazio():
     assert limpar("") == ""
